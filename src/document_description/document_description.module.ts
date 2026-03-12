@@ -4,6 +4,6 @@ import { DocumentDescriptionController } from './document_description.controller
 
 @Module({
   providers: [DocumentDescriptionService],
-  controllers: [DocumentDescriptionController]
+  controllers: [DocumentDescriptionController],
 })
 export class DocumentDescriptionModule {}

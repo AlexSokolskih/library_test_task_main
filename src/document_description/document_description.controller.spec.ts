@@ -9,7 +9,9 @@ describe('DocumentDescriptionController', () => {
       controllers: [DocumentDescriptionController],
     }).compile();
 
-    controller = module.get<DocumentDescriptionController>(DocumentDescriptionController);
+    controller = module.get<DocumentDescriptionController>(
+      DocumentDescriptionController,
+    );
   });
 
   it('should be defined', () => {
