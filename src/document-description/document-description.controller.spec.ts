@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DocumentDescriptionController } from './document_description.controller';
+import { DocumentDescriptionController } from './document-description.controller';
 
 describe('DocumentDescriptionController', () => {
   let controller: DocumentDescriptionController;
