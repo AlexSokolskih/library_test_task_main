@@ -1,20 +1,64 @@
 import { Injectable } from '@nestjs/common';
 import { DocumentDescription } from './document-description.entity';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import QueryStream from 'pg-query-stream';
+import { Readable } from 'stream';
+import { Pool } from 'pg';
 
 @Injectable()
 export class DocumentDescriptionService {
   constructor(
     @InjectRepository(DocumentDescription)
     private documentDescriptionRepository: Repository<DocumentDescription>,
+    @InjectDataSource()
+    private dataSource: DataSource,
   ) {}
 
-  async findAll(): Promise<DocumentDescription[]> {
-    return this.documentDescriptionRepository.find();
+  private pool = new Pool({
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT ?? '5432', 10),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  });
+
+  async findAll(
+    perPage: number = 20,
+    page: number = 1,
+  ): Promise<DocumentDescription[]> {
+    const take = Math.max(1, perPage);
+    const pageNumber = Math.max(1, page);
+    const skip = (pageNumber - 1) * take;
+
+    return this.documentDescriptionRepository.find({
+      order: {
+        system_number: 'DESC',
+      },
+      skip,
+      take,
+    });
   }
 
   async findOne(uuid: string): Promise<DocumentDescription | null> {
     return this.documentDescriptionRepository.findOne({ where: { uuid } });
+  }
+
+  async createDocumentStream(): Promise<Readable> {
+    const client = await this.pool.connect();
+
+    const query = `
+      SELECT system_number, uuid, reg_number, author, title, imprint
+      FROM document_description
+      ORDER BY system_number
+    `;
+
+    const queryStream = new QueryStream(query, [], { batchSize: 2 });
+    const dbStream = client.query(queryStream);
+
+    dbStream.on('end', () => client.release());
+    dbStream.on('error', () => client.release());
+
+    return dbStream;
   }
 }
