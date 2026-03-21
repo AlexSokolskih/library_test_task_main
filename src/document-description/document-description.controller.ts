@@ -13,8 +13,9 @@ export class DocumentDescriptionController {
   async findAll(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('per_page') perPage?: string,
-    @Query('page') page?: string,
+    @Query('per_page') perPage: string = '20',
+    @Query('page') page: string = '1',
+    @Query('search') search?: string,
   ) {
     const acceptHeader = req.headers.accept || '';
 
@@ -22,10 +23,16 @@ export class DocumentDescriptionController {
       return this.getAllDocumentsLikeStream(res);
     }
 
-    const take = perPage ? Math.max(1, Number(perPage)) : 20;
-    const pageNumber = page ? Math.max(1, Number(page)) : 1;
+    console.log('search');
+    const take = Number.parseInt(perPage, 10);
+    const pageNumber = Number.parseInt(page, 10);
 
-    return this.documentDescriptionService.findAll(take, pageNumber);
+    const data = await this.documentDescriptionService.findAll(
+      take,
+      pageNumber,
+      search,
+    );
+    return res.json(data);
   }
 
   @Get(':uuid')

@@ -5,6 +5,7 @@ import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import QueryStream from 'pg-query-stream';
 import { Readable } from 'stream';
 import { Pool } from 'pg';
+import { SearchService } from './search/search.service';
 
 @Injectable()
 export class DocumentDescriptionService {
@@ -13,6 +14,7 @@ export class DocumentDescriptionService {
     private documentDescriptionRepository: Repository<DocumentDescription>,
     @InjectDataSource()
     private dataSource: DataSource,
+    private readonly searchService: SearchService,
   ) {}
 
   private pool = new Pool({
@@ -24,20 +26,12 @@ export class DocumentDescriptionService {
   });
 
   async findAll(
-    perPage: number = 20,
-    page: number = 1,
+    take: number,
+    pageNumber: number,
+    search?: string,
   ): Promise<DocumentDescription[]> {
-    const take = Math.max(1, perPage);
-    const pageNumber = Math.max(1, page);
-    const skip = (pageNumber - 1) * take;
-
-    return this.documentDescriptionRepository.find({
-      order: {
-        system_number: 'DESC',
-      },
-      skip,
-      take,
-    });
+    console.log('findAll');
+    return this.searchService.findAll(take, pageNumber, search);
   }
 
   async findOne(uuid: string): Promise<DocumentDescription | null> {
