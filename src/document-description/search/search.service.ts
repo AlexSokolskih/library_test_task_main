@@ -20,6 +20,7 @@ export class SearchService {
     if (!search) {
       return await this.paginationWithOutSearch(skip, take);
     }
+
     return this.getDocumentsFullTextSearch(search, take, skip);
   }
 

@@ -23,7 +23,6 @@ export class DocumentDescriptionController {
       return this.getAllDocumentsLikeStream(res);
     }
 
-    console.log('search');
     const take = Number.parseInt(perPage, 10);
     const pageNumber = Number.parseInt(page, 10);
 
@@ -53,9 +52,7 @@ export class DocumentDescriptionController {
     const ndjsonTransform = new Transform({
       objectMode: true,
       transform(row: any, _enc: BufferEncoding, cb: TransformCallback) {
-        setTimeout(() => {
-          cb(null, JSON.stringify(row) + '\n');
-        }, 1000);
+        cb(null, JSON.stringify(row) + '\n');
       },
     });
 
