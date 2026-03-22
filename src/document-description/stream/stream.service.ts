@@ -27,10 +27,8 @@ export class StreamService {
     const queryStream = new QueryStream(query, [], {
       batchSize: 1000,
     });
+
     const dbStream = client.query(queryStream) as Readable;
-
- 
-
 
     dbStream.on('end', () => client.release());
     dbStream.on('error', () => client.release());

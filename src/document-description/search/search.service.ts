@@ -32,7 +32,6 @@ export class SearchService {
       skip,
       take,
     });
-    console.log('result', result);
     return result;
   }
 

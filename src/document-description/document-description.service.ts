@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DocumentDescription } from './document-description.entity';
-import { Repository, DataSource } from 'typeorm';
-import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Readable } from 'stream';
 import { SearchService } from './search/search.service';
 import { StreamService } from './stream/stream.service';
@@ -11,8 +11,6 @@ export class DocumentDescriptionService {
   constructor(
     @InjectRepository(DocumentDescription)
     private documentDescriptionRepository: Repository<DocumentDescription>,
-    @InjectDataSource()
-    private dataSource: DataSource,
     private readonly searchService: SearchService,
     private readonly streamService: StreamService,
   ) {}
@@ -22,7 +20,6 @@ export class DocumentDescriptionService {
     pageNumber: number,
     search?: string,
   ): Promise<DocumentDescription[]> {
-    console.log('findAll');
     return this.searchService.findAll(take, pageNumber, search);
   }
 
@@ -31,10 +28,8 @@ export class DocumentDescriptionService {
   }
 
   async createDocumentStream(): Promise<Readable> {
-    const svc = this.streamService as unknown as {
-      createDocumentStream: () => Promise<Readable>;
-    };
-    const stream = await svc.createDocumentStream();
-    return stream;
+    //пропускаем линтеры на возвращаемые значения из функции createDocumentStream из-за того что они не типизированы
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    return await this.streamService.createDocumentStream();
   }
 }
