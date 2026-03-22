@@ -1,5 +1,15 @@
-import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Req,
+  Res,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { DocumentDescriptionService } from './document-description.service';
+import { FindAllQueryDto } from './dto/find-all-query.dto';
 import type { Request, Response } from 'express';
 import { Readable, Transform, TransformCallback, pipeline } from 'stream';
 
@@ -10,25 +20,36 @@ export class DocumentDescriptionController {
   ) {}
 
   @Get()
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
   async findAll(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('per_page') perPage: string = '20',
-    @Query('page') page: string = '1',
-    @Query('search') search?: string,
+    @Query() query: FindAllQueryDto,
   ) {
+    const { per_page = 20, page = 1, search } = query;
     const acceptHeader = req.headers.accept || '';
 
     if (acceptHeader.includes('application/ndjson')) {
       return this.getAllDocumentsLikeStream(res);
     }
 
-    const take = Number.parseInt(perPage, 10);
-    const pageNumber = Number.parseInt(page, 10);
+    return await this.getDocumentsWithPaginationAndSearch(
+      per_page,
+      page,
+      search,
+      res,
+    );
+  }
 
+  private async getDocumentsWithPaginationAndSearch(
+    perPage: number,
+    page: number,
+    search: string | undefined,
+    res: Response,
+  ) {
     const data = await this.documentDescriptionService.findAll(
-      take,
-      pageNumber,
+      perPage,
+      page,
       search,
     );
     return res.json(data);
