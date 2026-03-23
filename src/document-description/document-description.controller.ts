@@ -5,6 +5,7 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -12,8 +13,10 @@ import { DocumentDescriptionService } from './document-description.service';
 import { FindAllQueryDto } from './dto/find-all-query.dto';
 import type { Request, Response } from 'express';
 import { Readable, Transform, TransformCallback, pipeline } from 'stream';
+import { DocumentDescriptionTokenGuard } from './guards/document-description-token.guard';
 
 @Controller('document-descriptions')
+@UseGuards(DocumentDescriptionTokenGuard)
 export class DocumentDescriptionController {
   constructor(
     private readonly documentDescriptionService: DocumentDescriptionService,
