@@ -9,12 +9,26 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiProduces,
+  ApiQuery,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { DocumentDescriptionService } from './document-description.service';
 import { FindAllQueryDto } from './dto/find-all-query.dto';
 import type { Request, Response } from 'express';
 import { Readable, Transform, TransformCallback, pipeline } from 'stream';
 import { DocumentDescriptionTokenGuard } from './guards/document-description-token.guard';
+import { DocumentDescription } from './document-description.entity';
 
+@ApiTags('document-descriptions')
+@ApiBearerAuth()
 @Controller('document-descriptions')
 @UseGuards(DocumentDescriptionTokenGuard)
 export class DocumentDescriptionController {
@@ -24,6 +38,46 @@ export class DocumentDescriptionController {
 
   @Get()
   @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  @ApiOperation({
+    summary: 'Получить список документов',
+    description:
+      'Возвращает JSON-массив документов с пагинацией или NDJSON stream при Accept: application/ndjson.',
+  })
+  @ApiHeader({
+    name: 'Accept',
+    required: false,
+    description:
+      'Если передать application/ndjson, ответ будет в виде потокового NDJSON.',
+    schema: { type: 'string', default: 'application/json' },
+  })
+  @ApiQuery({ name: 'per_page', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    example: 'история',
+  })
+  @ApiProduces('application/json', 'application/ndjson')
+  @ApiOkResponse({
+    description: 'JSON-ответ: массив документов',
+    schema: {
+      type: 'array',
+      items: { $ref: getSchemaPath(DocumentDescription) },
+    },
+  })
+  @ApiOkResponse({
+    description: 'NDJSON-ответ: поток строк по одному документу в строке',
+    content: {
+      'application/ndjson': {
+        schema: {
+          type: 'string',
+          example:
+            '{"system_number":1,"uuid":"0f5bf8cc-5d72-4b10-9226-ae4f4f06b340","reg_number":"REG-1","author":"Иванов И.И.","title":"Документ","imprint":"Москва"}\n',
+        },
+      },
+    },
+  })
   async findAll(
     @Req() req: Request,
     @Res() res: Response,
@@ -59,6 +113,17 @@ export class DocumentDescriptionController {
   }
 
   @Get(':uuid')
+  @ApiOperation({ summary: 'Получить документ по UUID' })
+  @ApiParam({
+    name: 'uuid',
+    description: 'UUID документа',
+    type: String,
+    example: '0f5bf8cc-5d72-4b10-9226-ae4f4f06b340',
+  })
+  @ApiOkResponse({
+    description: 'Документ найден',
+    type: DocumentDescription,
+  })
   findOne(@Param('uuid') uuid: string) {
     return this.documentDescriptionService.findOne(uuid);
   }
