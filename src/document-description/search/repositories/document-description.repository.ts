@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DocumentDescription } from '../document-description.entity';
+import { DocumentDescription } from '../../document-description.entity';
 
 /**
  * Слой репозитория: вся работа с БД по сущности.
@@ -14,10 +14,11 @@ export class DocumentDescriptionRepository {
     private readonly documentDescriptionRepository: Repository<DocumentDescription>,
   ) {}
 
-  /**
-   * Постраничная выборка с опциональным FTS.
-   * Сортировка всегда по system_number DESC — явное требование ТЗ для списка.
-   */
+  async findOneByUuid(uuid: string): Promise<DocumentDescription | null> {
+    return this.documentDescriptionRepository.findOne({
+      where: { uuid },
+    });
+  }
 
   async findPageWithoutSearch(
     skip: number,

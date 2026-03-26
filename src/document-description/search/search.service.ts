@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DocumentDescription } from '../document-description.entity';
-import { DocumentDescriptionRepository } from '../repositories/document-description.repository';
+import { DocumentDescriptionOneResponseDto } from '../dto/document-description-one-response.dto';
+import { DocumentDescriptionRepository } from './repositories/document-description.repository';
 
 @Injectable()
 export class SearchService {
@@ -27,5 +28,13 @@ export class SearchService {
       skip,
       take,
     );
+  }
+
+  async findOne(uuid: string): Promise<DocumentDescriptionOneResponseDto> {
+    const row = await this.documentDescriptionRepository.findOneByUuid(uuid);
+    if (!row) {
+      throw new NotFoundException(`Document with uuid ${uuid} not found`);
+    }
+    return { data: row };
   }
 }

@@ -1,19 +1,12 @@
 import { Module } from '@nestjs/common';
 import { DocumentDescriptionService } from './document-description.service';
 import { DocumentDescriptionController } from './document-description.controller';
-import { DocumentDescription } from './document-description.entity';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { SearchService } from './search/search.service';
-import { DocumentDescriptionRepository } from './repositories/document-description.repository';
+import { SearchModule } from './search/search.module';
 import { StreamModule } from './stream/stream.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DocumentDescription]), StreamModule],
-  providers: [
-    DocumentDescriptionService,
-    SearchService,
-    DocumentDescriptionRepository,
-  ],
+  imports: [SearchModule, StreamModule],
+  providers: [DocumentDescriptionService],
   controllers: [DocumentDescriptionController],
 })
 export class DocumentDescriptionModule {}
