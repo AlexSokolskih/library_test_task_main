@@ -1,19 +1,84 @@
 import { Injectable } from '@nestjs/common';
-import { Pool, type PoolClient } from 'pg';
+import type { PoolClient } from 'pg';
 import QueryStream from 'pg-query-stream';
 import { Readable, Transform, TransformCallback } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { Request, Response } from 'express';
+import { StreamPoolProvider } from './stream-pool.provider';
 
 @Injectable()
 export class StreamService {
-  private pool = new Pool({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT ?? '5432', 10),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
+  private static readonly ALL_DOCUMENTS_QUERY = `
+    SELECT system_number, uuid, reg_number, author, title, imprint
+    FROM document_description
+    ORDER BY system_number
+  `;
+
+  constructor(private readonly streamPoolProvider: StreamPoolProvider) {}
+
+  async createDocumentStream(res: Response, req: Request): Promise<void> {
+    const client = await this.streamPoolProvider.pool.connect();
+    const abortController = new AbortController();
+
+    const queryStream = new QueryStream(StreamService.ALL_DOCUMENTS_QUERY, [], {
+      batchSize: 1000,
+    });
+
+    const dbStream = client.query(queryStream) as Readable;
+    const releaseState = { released: false };
+    const cleanup = () =>
+      this.cleanupStream(abortController, dbStream, client, releaseState);
+    const onClose = () => {
+      if (!res.writableFinished) {
+        cleanup();
+      }
+    };
+
+    req.once('aborted', cleanup);
+    res.once('close', onClose);
+
+    this.setStreamHeaders(res);
+    const ndjsonTransform = this.createNdjsonTransform();
+
+    let completed = false;
+    try {
+      await pipeline(dbStream, ndjsonTransform, res, {
+        signal: abortController.signal,
+      });
+      completed = true;
+    } catch (err) {
+      if ((err as { name?: string }).name !== 'AbortError') {
+        console.error('stream error', err);
+      }
+    } finally {
+      if (completed) {
+        this.releaseClientOnce(client, releaseState);
+      } else {
+        cleanup();
+      }
+      req.off('aborted', cleanup);
+      res.off('close', onClose);
+    }
+  }
+
+  private setStreamHeaders(res: Response): void {
+    res.setHeader('Content-Type', 'application/ndjson');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="export.ndjson"',
+    );
+    res.setHeader('Transfer-Encoding', 'chunked');
+  }
+
+  private createNdjsonTransform(): Transform {
+    return new Transform({
+      objectMode: true,
+      highWaterMark: 200,
+      transform(row: any, _enc: BufferEncoding, cb: TransformCallback) {
+        cb(null, JSON.stringify(row) + '\n');
+      },
+    });
+  }
 
   private releaseClientOnce(
     client: PoolClient,
@@ -40,61 +105,5 @@ export class StreamService {
     }
 
     this.releaseClientOnce(client, state);
-  }
-
-  async createDocumentStream(res: Response, req: Request): Promise<void> {
-    const client = await this.pool.connect();
-    const abortController = new AbortController();
-
-    const query = `
-      SELECT system_number, uuid, reg_number, author, title, imprint
-      FROM document_description
-      ORDER BY system_number
-    `;
-
-    const queryStream = new QueryStream(query, [], {
-      batchSize: 1000,
-    });
-
-    const dbStream = client.query(queryStream) as Readable;
-    const releaseState = { released: false };
-    const cleanup = () =>
-      this.cleanupStream(abortController, dbStream, client, releaseState);
-
-    req.once('aborted', cleanup);
-    res.once('close', cleanup);
-
-    res.setHeader('Content-Type', 'application/ndjson');
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename="export.ndjson"',
-    );
-    res.setHeader('Transfer-Encoding', 'chunked');
-    const ndjsonTransform = new Transform({
-      objectMode: true,
-      transform(row: any, _enc: BufferEncoding, cb: TransformCallback) {
-        cb(null, JSON.stringify(row) + '\n');
-      },
-    });
-
-    let completed = false;
-    try {
-      await pipeline(dbStream, ndjsonTransform, res, {
-        signal: abortController.signal,
-      });
-      completed = true;
-    } catch (err) {
-      if ((err as { name?: string }).name !== 'AbortError') {
-        console.error('stream error', err);
-      }
-    } finally {
-      if (completed) {
-        this.releaseClientOnce(client, releaseState);
-      } else {
-        cleanup();
-      }
-      req.off('aborted', cleanup);
-      res.off('close', cleanup);
-    }
   }
 }
