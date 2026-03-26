@@ -11,7 +11,7 @@ const dataSourceOptions: DataSourceOptions & SeederOptions = {
   database: process.env.DB_NAME,
   // автоматически подхватит все *.entity.ts
   entities: ['src/**/*.entity.ts'],
-  migrations: ['src/migrations/*.ts'],
+  migrations: ['src/database/migrations/*.ts'],
   seeds: ['src/database/seeds/**/*{.ts,.js}'],
   synchronize: false, // для миграций оставляем false
 };
