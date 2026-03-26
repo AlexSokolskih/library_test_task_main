@@ -22,10 +22,11 @@ import {
 } from '@nestjs/swagger';
 import { DocumentDescriptionService } from './document-description.service';
 import { FindAllQueryDto } from './dto/find-all-query.dto';
+import { DocumentDescriptionOneResponseDto } from './dto/document-description-one-response.dto';
 import type { Request, Response } from 'express';
-import { Readable, Transform, TransformCallback, pipeline } from 'stream';
 import { DocumentDescriptionTokenGuard } from './guards/document-description-token.guard';
 import { DocumentDescription } from './document-description.entity';
+import { PaginatedDocumentDescriptionsResponseDto } from './dto/paginated-document-descriptions-response.dto';
 
 @ApiTags('document-descriptions')
 @ApiBearerAuth()
@@ -87,29 +88,37 @@ export class DocumentDescriptionController {
     const acceptHeader = req.headers.accept || '';
 
     if (acceptHeader.includes('application/ndjson')) {
-      return this.getAllDocumentsLikeStream(res);
+      await this.getAllDocumentsLikeStream(res, req);
+      return;
     }
 
-    return await this.getDocumentsWithPaginationAndSearch(
+    const data = await this.getDocumentsWithPaginationAndSearch(
       per_page,
       page,
       search,
-      res,
     );
+    return res.json(data);
   }
 
   private async getDocumentsWithPaginationAndSearch(
     perPage: number,
     page: number,
     search: string | undefined,
-    res: Response,
-  ) {
-    const data = await this.documentDescriptionService.findAll(
+  ): Promise<PaginatedDocumentDescriptionsResponseDto> {
+    const { items, total } = await this.documentDescriptionService.findAll(
       perPage,
       page,
       search,
     );
-    return res.json(data);
+    return {
+      data: items,
+      meta: {
+        page: page,
+        per_page: items.length, //не понятно на текущей странице или тот per_page что передали в запросе сделал на текущей странице
+        total_pages: Math.ceil(total / perPage),
+        search: search || null,
+      },
+    };
   }
 
   @Get(':uuid')
@@ -122,33 +131,16 @@ export class DocumentDescriptionController {
   })
   @ApiOkResponse({
     description: 'Документ найден',
-    type: DocumentDescription,
+    type: DocumentDescriptionOneResponseDto,
   })
   findOne(@Param('uuid') uuid: string) {
     return this.documentDescriptionService.findOne(uuid);
   }
 
-  private async getAllDocumentsLikeStream(@Res() res: Response) {
-    const dbStream: Readable =
-      await this.documentDescriptionService.createDocumentStream();
-
-    res.setHeader('Content-Type', 'application/ndjson');
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename="export.ndjson"',
-    );
-    res.setHeader('Transfer-Encoding', 'chunked');
-    const ndjsonTransform = new Transform({
-      objectMode: true,
-      transform(row: any, _enc: BufferEncoding, cb: TransformCallback) {
-        cb(null, JSON.stringify(row) + '\n');
-      },
-    });
-
-    pipeline(dbStream, ndjsonTransform, res, (err) => {
-      if (err) {
-        console.error('stream error', err);
-      }
-    });
+  private async getAllDocumentsLikeStream(
+    res: Response,
+    req: Request,
+  ): Promise<void> {
+    await this.documentDescriptionService.createDocumentStream(res, req);
   }
 }
