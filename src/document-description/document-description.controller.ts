@@ -12,20 +12,20 @@ import {
 import {
   ApiBearerAuth,
   ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiProduces,
   ApiQuery,
   ApiTags,
-  getSchemaPath,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { DocumentDescriptionService } from './document-description.service';
 import { FindAllQueryDto } from './dto/find-all-query.dto';
 import { DocumentDescriptionOneResponseDto } from './dto/document-description-one-response.dto';
 import type { Request, Response } from 'express';
 import { DocumentDescriptionTokenGuard } from './guards/document-description-token.guard';
-import { DocumentDescription } from './document-description.entity';
 import { PaginatedDocumentDescriptionsResponseDto } from './dto/paginated-document-descriptions-response.dto';
 
 @ApiTags('document-descriptions')
@@ -61,11 +61,11 @@ export class DocumentDescriptionController {
   })
   @ApiProduces('application/json', 'application/ndjson')
   @ApiOkResponse({
-    description: 'JSON-ответ: массив документов',
-    schema: {
-      type: 'array',
-      items: { $ref: getSchemaPath(DocumentDescription) },
-    },
+    description: 'JSON-ответ: объект с данными и мета-пагинацией',
+    type: PaginatedDocumentDescriptionsResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Токен отсутствует или недействителен.',
   })
   @ApiOkResponse({
     description: 'NDJSON-ответ: поток строк по одному документу в строке',
@@ -132,6 +132,12 @@ export class DocumentDescriptionController {
   @ApiOkResponse({
     description: 'Документ найден',
     type: DocumentDescriptionOneResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Токен отсутствует или недействителен.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Документ с указанным UUID не найден.',
   })
   findOne(@Param('uuid') uuid: string) {
     return this.documentDescriptionService.findOne(uuid);
