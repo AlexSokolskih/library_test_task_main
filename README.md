@@ -1,98 +1,208 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Document Description API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Сервис на `NestJS + PostgreSQL` для выдачи описаний документов:
+- постраничный JSON-список;
+- полнотекстовый поиск;
+- получение документа по `uuid`;
+- потоковая выгрузка в `NDJSON`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Что делает сервис
 
-## Description
+Доступны 2 эндпоинта:
+- `GET /document-descriptions`  
+  Режим по умолчанию: JSON с пагинацией и поиском.
+  Если передать `Accept: application/ndjson`, сервис отдает поток `NDJSON`.
+- `GET /document-descriptions/:uuid`  
+  Возвращает один документ по UUID.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Все эндпоинты защищены Bearer-токеном (`DOCUMENT_DESCRIPTION_TOKEN`).
 
-## Project setup
+Swagger: `http://localhost:3000/api/docs`
 
-```bash
-$ yarn install
+## Стек
+
+- `NestJS 11`
+- `TypeORM 0.3` (основной доступ к данным)
+- `PostgreSQL` (`pg`, `pg-query-stream`)
+- `class-validator` + `class-transformer`
+- `Swagger` (`@nestjs/swagger`)
+
+## Переменные окружения
+
+Пример `.env`:
+
+```env
+PORT=3000
+
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=library
+
+DOCUMENT_DESCRIPTION_TOKEN=super-secret-token
 ```
 
-## Compile and run the project
+## Запуск
 
 ```bash
-# development
-$ yarn run start
-
-# watch mode
-$ yarn run start:dev
-
-# production mode
-$ yarn run start:prod
+npm install
+npm run start:dev
 ```
 
-## Run tests
+Миграции/сиды:
 
 ```bash
-# unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+npm run migration:run
+npm run seed
 ```
 
-## Deployment
+## Контракт API
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 1) Список документов
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+`GET /document-descriptions`
+
+Query-параметры:
+- `per_page?: number` (>= 1, по умолчанию `20`)
+- `page?: number` (>= 1, по умолчанию `1`)
+- `search?: string` (до `100` символов)
+
+Заголовки:
+- `Authorization: Bearer <DOCUMENT_DESCRIPTION_TOKEN>`
+- `Accept: application/json` (по умолчанию) или `application/ndjson`
+
+Ответ `application/json`:
+
+```json
+{
+  "data": [
+    {
+      "system_number": 1,
+      "uuid": "0f5bf8cc-5d72-4b10-9226-ae4f4f06b340",
+      "reg_number": "REG-2026-001",
+      "author": "Иванов И.И.",
+      "title": "Описание документа",
+      "imprint": "Москва, Издательство Пример, 2026"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "per_page": 1,
+    "total_pages": 5,
+    "search": "история"
+  }
+}
+```
+
+Важно по `meta.per_page`: это **фактическое количество элементов на текущей странице** (`items.length`), а не просто значение входного query-параметра.
+
+Ответ `application/ndjson`:
+- поток, где каждая строка — отдельный JSON-документ.
+
+### 2) Документ по UUID
+
+`GET /document-descriptions/:uuid`
+
+Ответ:
+
+```json
+{
+  "data": {
+    "system_number": 1,
+    "uuid": "0f5bf8cc-5d72-4b10-9226-ae4f4f06b340",
+    "reg_number": "REG-2026-001",
+    "author": "Иванов И.И.",
+    "title": "Описание документа",
+    "imprint": "Москва, Издательство Пример, 2026"
+  }
+}
+```
+
+## Ошибки
+
+- `401 Unauthorized` — токен отсутствует или невалиден.
+- `404 Not Found` — документ с указанным `uuid` не найден.
+- `400 Bad Request` — невалидные query-параметры (`page`, `per_page`, `search`).
+
+## Как устроен проект
+
+```text
+src/
+  main.ts                         // bootstrap + Swagger
+  app.module.ts                   // корневой модуль + TypeORM config
+  database/
+    db.config.ts                  // единая сборка DB-конфига для TypeORM и pg Pool
+  document-description/
+    document-description.controller.ts
+    document-description.service.ts
+    document-description.module.ts
+    document-description.entity.ts
+    dto/
+    guards/
+    search/
+      search.service.ts
+      repositories/document-description.repository.ts
+    stream/
+      stream.service.ts
+      stream-pool.provider.ts
+```
+
+### Поток запроса (JSON-режим)
+
+1. Контроллер валидирует query (`ValidationPipe` + DTO).
+2. Guard проверяет `Authorization: Bearer ...`.
+3. `DocumentDescriptionService` делегирует в `SearchService`.
+4. `SearchService` выбирает стратегию:
+   - без `search`: обычная пагинация;
+   - с `search`: полнотекстовый поиск + приоритизация.
+5. Контроллер формирует ответ `{ data, meta }`.
+
+### Поток запроса (NDJSON-режим)
+
+1. Клиент отправляет `Accept: application/ndjson`.
+2. Контроллер передает управление `StreamService`.
+3. `StreamService`:
+   - берет raw-connection из `pg.Pool` (через `StreamPoolProvider`);
+   - запускает `QueryStream` с `batchSize=1000`;
+   - через `pipeline` стримит строки в ответ как NDJSON.
+4. При `aborted/close` корректно останавливает пайплайн и освобождает DB-client.
+
+## Почему решения такие
+
+- **Разделение controller / service / repository**  
+  Контроллер не знает про SQL, сервис не знает про HTTP-детали, репозиторий изолирует доступ к данным. Это упрощает тестирование и эволюцию кода.
+
+- **Два канала доступа к БД (TypeORM и raw pg)**  
+  Для обычных CRUD/поиска удобен `TypeORM`. Для больших выгрузок в потоковом режиме нужен контролируемый низкоуровневый стрим (`pg-query-stream`) без загрузки всех строк в память.
+
+- **FTS + префиксный tsquery**  
+  В поиске используется префиксный запрос (`word:* & ...`) для более “живого” UX (поиск по началу слов), плюс `reg_number` проверяется на точное совпадение и поднимается в выдаче.
+
+- **Явная документация 401/404 в Swagger**  
+  Клиентам сразу видно полный контракт не только успешных, но и ошибочных ответов.
+
+## Примеры запросов
+
+JSON-список:
 
 ```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+curl -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  "http://localhost:3000/document-descriptions?page=1&per_page=20&search=история"
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+NDJSON-выгрузка:
 
-## Resources
+```bash
+curl -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  -H "Accept: application/ndjson" \
+  "http://localhost:3000/document-descriptions" \
+  -o export.ndjson
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+Документ по UUID:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+curl -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  "http://localhost:3000/document-descriptions/0f5bf8cc-5d72-4b10-9226-ae4f4f06b340"
+```

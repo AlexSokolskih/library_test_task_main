@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { PoolClient } from 'pg';
 import QueryStream from 'pg-query-stream';
-import { Readable, Transform, TransformCallback } from 'stream';
+import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { Request, Response } from 'express';
 import { StreamPoolProvider } from './stream-pool.provider';
+import { NdjsonTransform } from './ndjson.transform';
+import { cleanupStream, releaseClientOnce } from './utils/stream-cleanup';
 
 @Injectable()
 export class StreamService {
@@ -27,7 +28,7 @@ export class StreamService {
     const dbStream = client.query(queryStream) as Readable;
     const releaseState = { released: false };
     const cleanup = () =>
-      this.cleanupStream(abortController, dbStream, client, releaseState);
+      cleanupStream(abortController, dbStream, client, releaseState);
     const onClose = () => {
       if (!res.writableFinished) {
         cleanup();
@@ -38,7 +39,7 @@ export class StreamService {
     res.once('close', onClose);
 
     this.setStreamHeaders(res);
-    const ndjsonTransform = this.createNdjsonTransform();
+    const ndjsonTransform = new NdjsonTransform(200);
 
     let completed = false;
     try {
@@ -52,7 +53,7 @@ export class StreamService {
       }
     } finally {
       if (completed) {
-        this.releaseClientOnce(client, releaseState);
+        releaseClientOnce(client, releaseState);
       } else {
         cleanup();
       }
@@ -70,40 +71,5 @@ export class StreamService {
     res.setHeader('Transfer-Encoding', 'chunked');
   }
 
-  private createNdjsonTransform(): Transform {
-    return new Transform({
-      objectMode: true,
-      highWaterMark: 200,
-      transform(row: any, _enc: BufferEncoding, cb: TransformCallback) {
-        cb(null, JSON.stringify(row) + '\n');
-      },
-    });
-  }
-
-  private releaseClientOnce(
-    client: PoolClient,
-    state: { released: boolean },
-  ): void {
-    if (state.released) {
-      return;
-    }
-
-    state.released = true;
-    client.release();
-  }
-
-  private cleanupStream(
-    abortController: AbortController,
-    dbStream: Readable,
-    client: PoolClient,
-    state: { released: boolean },
-  ): void {
-    abortController.abort();
-
-    if (!dbStream.destroyed) {
-      dbStream.destroy();
-    }
-
-    this.releaseClientOnce(client, state);
-  }
+  // release/cleanup вынесены в ./utils/stream-cleanup
 }
