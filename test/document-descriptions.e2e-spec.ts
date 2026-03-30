@@ -19,6 +19,7 @@ type Doc = {
 
 describe('DocumentDescriptions (integration/e2e)', () => {
   let app: INestApplication;
+  const testToken = 'change-me';
 
   const docs: Doc[] = [
     {
@@ -69,6 +70,8 @@ describe('DocumentDescriptions (integration/e2e)', () => {
   };
 
   beforeAll(async () => {
+    process.env.DOCUMENT_DESCRIPTION_TOKEN = testToken;
+
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [DocumentDescriptionController],
       providers: [
@@ -91,6 +94,7 @@ describe('DocumentDescriptions (integration/e2e)', () => {
   it('GET /document-descriptions (JSON, без поиска): отдает data+meta с корректной пагинацией', async () => {
     const res = await request(app.getHttpServer())
       .get('/document-descriptions')
+      .set('Authorization', `Bearer ${testToken}`)
       .set('Accept', 'application/json')
       .query({ page: 1, per_page: 2 })
       .expect(200);
@@ -112,6 +116,7 @@ describe('DocumentDescriptions (integration/e2e)', () => {
   it('GET /document-descriptions (JSON, c поиском): meta.search заполнен, per_page=items.length', async () => {
     const res = await request(app.getHttpServer())
       .get('/document-descriptions')
+      .set('Authorization', `Bearer ${testToken}`)
       .set('Accept', 'application/json')
       .query({ page: 1, per_page: 10, search: 'REG-1' })
       .expect(200);
@@ -128,6 +133,7 @@ describe('DocumentDescriptions (integration/e2e)', () => {
   it('GET /document-descriptions (NDJSON): отдает поток NDJSON', async () => {
     const res = await request(app.getHttpServer())
       .get('/document-descriptions')
+      .set('Authorization', `Bearer ${testToken}`)
       .set('Accept', 'application/ndjson')
       .expect(200);
 
@@ -143,6 +149,7 @@ describe('DocumentDescriptions (integration/e2e)', () => {
   it('GET /document-descriptions/:uuid (найден): возвращает DTO { data: {...} }', async () => {
     const res = await request(app.getHttpServer())
       .get(`/document-descriptions/${docs[0].uuid}`)
+      .set('Authorization', `Bearer ${testToken}`)
       .expect(200);
 
     expect(res.body).toHaveProperty('data');
@@ -152,6 +159,7 @@ describe('DocumentDescriptions (integration/e2e)', () => {
   it('GET /document-descriptions/:uuid (не найден): 404', async () => {
     await request(app.getHttpServer())
       .get('/document-descriptions/00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${testToken}`)
       .expect(404);
   });
 });

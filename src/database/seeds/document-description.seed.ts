@@ -221,6 +221,12 @@ export default class UserSeeder implements Seeder {
       },
     ]);
 
-    await repository.save(documentDescription);
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(DocumentDescription)
+      .values(documentDescription)
+      .orIgnore()
+      .execute();
   }
 }
