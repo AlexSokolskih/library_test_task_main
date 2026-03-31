@@ -1,7 +1,0 @@
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=library_user
-DB_PASSWORD=library_password
-DB_NAME=library_db
-
-DOCUMENT_DESCRIPTION_TOKEN="1qaz2wsx"
