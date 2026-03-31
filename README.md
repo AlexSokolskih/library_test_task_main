@@ -19,7 +19,7 @@
 - выбор режима ответа (JSON или NDJSON).
 
 ### `stream`
-Оптимизирован под высокую нагрузку и потоковую выгрузку, поэтому пришдлсь пожертвовать чистотой кода.
+Оптимизирован под высокую нагрузку и потоковую выгрузку, поэтому пришдлоь пожертвовать чистотой кода.
 - Читает данные из PostgreSQL через `pg-query-stream` (cursor-based подход).
 - Преобразует строки в NDJSON.
 - Отдает результат клиенту через `response` stream.
@@ -98,10 +98,6 @@ Swagger: `http://localhost:3000/api/docs`
   Клиентам сразу видно полный контракт не только успешных, но и ошибочных ответов.
 
 
-
-
-
-
 ## Запуск
 
 ```bash
@@ -109,11 +105,17 @@ npm install
 npm run start:dev
 ```
 
-Миграции/сиды:
+### Миграции/сиды:
 
 ```bash
 npm run migration:run
 npm run seed
+```
+### Как залить миллион записей в БД (bulk seed)
+Запустить большой сид (по умолчанию 1_000_000 записей, батч до 10_000–13_000 строк):
+
+```bash
+npm run seed:bulk
 ```
 
 ## Контракт API
@@ -193,7 +195,7 @@ JSON-список:
 
 ```bash
 curl -G \
-  -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  -H "Authorization: Bearer change-me" \
   --data-urlencode "page=1" \
   --data-urlencode "per_page=10" \
   "http://localhost:3000/document-descriptions"
@@ -203,7 +205,7 @@ curl -G \
 
 ```bash
 curl -G \
-  -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  -H "Authorization: Bearer change-me" \
   --data-urlencode "page=1" \
   --data-urlencode "per_page=20" \
   --data-urlencode "search=библиотека" \
@@ -214,7 +216,7 @@ curl -G \
 
 ```bash
 curl -G \
-  -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  -H "Authorization: Bearer change-me" \
   --data-urlencode "page=1" \
   --data-urlencode "per_page=20" \
   --data-urlencode "search=би" \
@@ -225,7 +227,7 @@ curl -G \
 
 ```bash
 curl -G \
-  -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+  -H "Authorization: Bearer change-me" \
   --data-urlencode "page=1" \
   --data-urlencode "per_page=20" \
   --data-urlencode "search=python" \
@@ -235,7 +237,7 @@ curl -G \
 NDJSON-выгрузка:
 
 ```bash
-curl -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+curl -H "Authorization: Bearer change-me" \
   -H "Accept: application/ndjson" \
   "http://localhost:3000/document-descriptions" \
   -o export.ndjson
@@ -244,6 +246,14 @@ curl -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
 Документ по UUID:
 
 ```bash
-curl -H "Authorization: Bearer $DOCUMENT_DESCRIPTION_TOKEN" \
+curl -H "Authorization: Bearer change-me" \
   "http://localhost:3000/document-descriptions/123e4567-e89b-12d3-a456-426614174000"
 ```
+
+
+## Тестирование выгрузки миллиона записей
+
+% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  227M    0  227M    0     0  86.9M      0 --:--:--  0:00:02 --:--:-- 87.0M
+скачано ~227 MB за ~2 c (≈87 MB/s). Поток работает под высокой нагрузкой.
