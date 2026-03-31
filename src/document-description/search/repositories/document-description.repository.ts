@@ -62,7 +62,6 @@ export class DocumentDescriptionRepository {
         exact: search,
       },
     );
-    console.log('prefixQuery', prefixQuery);
 
     // приоритет точного совпадения
     queryBuilder
