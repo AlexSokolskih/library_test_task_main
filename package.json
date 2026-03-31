@@ -23,8 +23,8 @@
     "migration:generate": "npm run typeorm -- migration:generate src/database/migrations/migration --dataSource src/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run --dataSource src/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert --dataSource src/data-source.ts",
-    "seed": "ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:run",
-    "seed:bulk": "ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:run --name DocumentDescriptionBulkSeeder"
+    "seed": "ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:run --name UserSeeder",
+    "seed:bulk": "BULK_SEED_TOTAL=1000000 ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:run --name DocumentDescriptionBulkSeeder"
   },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
